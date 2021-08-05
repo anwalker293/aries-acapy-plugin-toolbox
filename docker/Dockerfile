@@ -5,7 +5,8 @@ RUN pip3 install --no-cache-dir poetry
 RUN mkdir acapy_plugin_toolbox; touch acapy_plugin_toolbox/__init__.py
 COPY README.md .
 COPY docker/default.yml .
-COPY pyproject.toml poetry.lock .
+COPY pyproject.toml .
+COPY poetry.lock .
 USER root
 RUN chown -R indy:indy .
 USER $user
