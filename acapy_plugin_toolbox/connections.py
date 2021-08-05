@@ -4,12 +4,14 @@
 # pylint: disable=too-few-public-methods
 
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
+import json
+
 
 from aries_cloudagent.connections.models.conn_record import ConnRecord
-from aries_cloudagent.core.event_bus import Event, EventBus
-from aries_cloudagent.core.profile import InjectionContext, Profile
+from aries_cloudagent.core.profile import InjectionContext, Profile, ProfileSession
 from aries_cloudagent.core.protocol_registry import ProtocolRegistry
+from aries_cloudagent.core.event_bus import Event, EventBus
 from aries_cloudagent.messaging.base_handler import (
     BaseHandler,
     BaseResponder,
@@ -21,6 +23,8 @@ from aries_cloudagent.protocols.connections.v1_0.messages.connection_invitation 
 )
 from aries_cloudagent.protocols.problem_report.v1_0.message import ProblemReport
 from aries_cloudagent.storage.error import StorageNotFoundError
+from aries_cloudagent.storage.base import BaseStorage
+from aries_cloudagent.storage.record import StorageRecord
 from marshmallow import Schema, fields, validate
 
 from mrgf import Selector, request_handler_principal_finder
@@ -316,7 +320,7 @@ class ReceiveInvitationHandler(BaseHandler):
 
     @admin_only
     async def handle(self, context: RequestContext, responder: BaseResponder):
-        """Handle recieve invitation request."""
+        """Handle receive invitation request."""
         session = await context.session()
         connection_mgr = ConnectionManager(session)
         invitation = ConnectionInvitation.from_url(context.message.invitation)
@@ -327,3 +331,35 @@ class ReceiveInvitationHandler(BaseHandler):
         )
         connection_resp = Connection(**conn_record_to_message_repr(connection))
         await responder.send_reply(connection_resp)
+        async with context.session() as session:
+            conn_record = await ConnRecord.retrieve_by_id(
+                session, context.connection_record.connection_id
+            )
+            await conn_record.metadata_set(
+                session, "creator", context.connection_record.connection_id
+            )
+            print(await conn_record.metadata_get_all(session))
+            print(
+                await retrieve_connection_by_creator(
+                    session, context.connection_record.connection_id
+                )
+            )
+
+
+async def retrieve_connection_by_creator(
+    session: ProfileSession,
+    creator: str,
+) -> Sequence[ConnRecord]:
+    """Helper method that filters connection records
+    based on the creator connection metadata"""
+    storage: BaseStorage = session.inject(BaseStorage)
+    records: Sequence[StorageRecord] = await storage.find_all_records(
+        ConnRecord.RECORD_TYPE_METADATA, {"key": "creator"}
+    )
+    records = [record for record in records if json.loads(record.value) == creator]
+    results = []
+    for record in records:
+        results.append(
+            await ConnRecord.retrieve_by_id(session, record.tags["connection_id"])
+        )
+    return results
