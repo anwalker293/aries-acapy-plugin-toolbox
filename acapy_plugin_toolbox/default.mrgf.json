@@ -6,23 +6,38 @@
   "version": "0.1",
   "data_uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/default.mrgf.json",
   "description": "Default governance used by ACA-Py plugin toolbox to manage privileges of connections",
-  "roles": ["admin"],
+  "roles": ["admin", "partner"],
   "privileges": [
     {
       "name": "admin-connections",
       "description": "Authorized to administrate connections",
       "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
+    },
+    {
+      "name": "all-connections",
+      "description": "Authorized to view all created connections",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
+    },
+    {
+      "name": "created-connections",
+      "description": "Authorized to view only connections by requester",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
+    },
+    {
+      "name": "admin-invitations",
+      "description": "Authorized to administrate invitations",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
     }
   ],
   "rules": [
-    {"grant": ["all-connections"], "when": {"roles": "admin"}},
-    {"grant": ["created-connections"], "when": {"roles": "partner"}},
     {"grant": ["admin-connections"], "when": {
       "any": [
         {"roles": "admin"},
         {"roles": "partner"}
       ]
     }},
+    {"grant": ["all-connections"], "when": {"roles": "admin"}},
+    {"grant": ["created-connections"], "when": {"roles": "partner"}},
     {"grant": ["admin-invitations"], "when": {
       "any": [
         {"roles": "admin"},
