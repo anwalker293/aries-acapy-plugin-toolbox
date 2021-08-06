@@ -510,8 +510,8 @@ typing-extensions = "^3.10.0"
 [package.source]
 type = "git"
 url = "https://github.com/dbluhm/mrgf"
-reference = "ed34e55bff20fb40a0dd3646063b59bc4262baaa"
-resolved_reference = "ed34e55bff20fb40a0dd3646063b59bc4262baaa"
+reference = "b48c9bf47733f36292ea622822ea30aaecb6930b"
+resolved_reference = "b48c9bf47733f36292ea622822ea30aaecb6930b"
 
 [[package]]
 name = "msgpack"
@@ -983,7 +983,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.9"
-content-hash = "40f6be3db8e6a3d7483cc9499e645291ccc4a14ea2b0f7ec528b9c57c3506dfd"
+content-hash = "54bd996ed8283da373018efd3100364cc29dcb2237533f6f30e05cd1d431affa"
 
 [metadata.files]
 aiohttp = [

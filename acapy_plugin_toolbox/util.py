@@ -25,6 +25,7 @@ from aries_cloudagent.messaging.models.base import BaseModel, BaseModelSchema
 from aries_cloudagent.protocols.problem_report.v1_0.message import ProblemReport
 
 from mrgf import request_context_principal_finder
+from mrgf.governance_framework import Principal
 
 
 LOGGER = logging.getLogger(__name__)
@@ -66,7 +67,8 @@ def require(condition: Callable):
         async def _wrapped(*args):
             [context] = [arg for arg in args if isinstance(arg, RequestContext)]
             [responder] = [arg for arg in args if isinstance(arg, BaseResponder)]
-            principal = await request_context_principal_finder(context)
+            principal: Principal = await request_context_principal_finder(context)
+
             if condition(principal):
                 return await func(*args)
 

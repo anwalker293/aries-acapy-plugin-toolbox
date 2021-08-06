@@ -20,7 +20,7 @@ from aries_cloudagent.connections.models.conn_record import ConnRecord
 from aries_cloudagent.storage.error import StorageNotFoundError
 from aries_cloudagent.messaging.valid import INDY_ISO8601_DATETIME
 
-from .util import generate_model_schema, admin_only
+from .util import generate_model_schema, require
 
 PROTOCOL = (
     "https://github.com/hyperledger/aries-toolbox/"
@@ -109,7 +109,7 @@ InvitationList, InvitationListSchema = generate_model_schema(
 class CreateInvitationHandler(BaseHandler):
     """Handler for create invitation request."""
 
-    @admin_only
+    @require(lambda p: "admin-invitations" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle create invitation request."""
         session = await context.session()
@@ -126,6 +126,9 @@ class CreateInvitationHandler(BaseHandler):
             await connection.metadata_set(session, "group", context.message.group)
         if context.message.roles:
             await connection.metadata_set(session, "roles", context.message.roles)
+        await connection.metadata_set(
+            session, "creator", context.connection_record.connection_id
+        )
         invite_response = Invitation(
             id=connection.connection_id,
             label=invitation.label,
@@ -149,7 +152,7 @@ class CreateInvitationHandler(BaseHandler):
 class InvitationGetListHandler(BaseHandler):
     """Handler for get invitation list request."""
 
-    @admin_only
+    @require(lambda p: "admin-invitations" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle get invitation list request."""
 

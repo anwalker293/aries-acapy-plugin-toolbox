@@ -30,7 +30,7 @@ auto-accept-invites: true
 auto-accept-requests: true
 auto-ping-connection: true
 connections-invite: true
-invite-metadata-json: '{"group": "admin"}'
+invite-metadata-json: '{"roles": "admin"}'
 
 # Credentials and Presentations
 preserve-exchange-records: true

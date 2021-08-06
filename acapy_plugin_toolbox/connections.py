@@ -26,9 +26,9 @@ from aries_cloudagent.storage.error import StorageNotFoundError
 from aries_cloudagent.storage.base import BaseStorage
 from aries_cloudagent.storage.record import StorageRecord
 from marshmallow import Schema, fields, validate
-from mrgf import Selector, request_context_principal_finder
+from mrgf import Selector, request_handler_principal_finder
 
-from .util import admin_only, generate_model_schema, send_to_admins
+from .util import generate_model_schema, require, send_to_admins
 
 PROTOCOL = (
     "https://github.com/hyperledger/aries-toolbox/"
@@ -169,9 +169,9 @@ List, ListSchema = generate_model_schema(
 
 class GetListHandler(BaseHandler):
     """Handler for get connection list request."""
-    selector = Selector(request_context_principal_finder)
+    selector = Selector(request_handler_principal_finder)
 
-    @admin_only
+    @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle get connection list request."""
 
@@ -208,7 +208,9 @@ class GetListHandler(BaseHandler):
     async def created(self, context: RequestContext):
         """Return connections created by this admin connection."""
         async with context.session() as session:
-            return (await ConnRecord.query(session))[:1]
+            return await retrieve_connection_by_creator(
+                session, context.connection_record.connection_id
+            )
 
     @retrieve_connections_filtered.register(
         lambda p: "all-connections" in p.privileges
@@ -233,7 +235,7 @@ Update, UpdateSchema = generate_model_schema(
 class UpdateHandler(BaseHandler):
     """Handler for update connection request."""
 
-    @admin_only
+    @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle update connection request."""
         session = await context.session()
@@ -278,7 +280,7 @@ Deleted, DeletedSchema = generate_model_schema(
 class DeleteHandler(BaseHandler):
     """Handler for delete connection request."""
 
-    @admin_only
+    @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle delete connection request."""
         if context.message.connection_id == context.connection_record.connection_id:
@@ -325,7 +327,7 @@ ReceiveInvitation, ReceiveInvitationSchema = generate_model_schema(
 class ReceiveInvitationHandler(BaseHandler):
     """Handler for receive invitation request."""
 
-    @admin_only
+    @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle receive invitation request."""
         session = await context.session()

@@ -31,7 +31,7 @@ auto-ping-connection: true
 # Generate Admin Invitation
 connections-invite: true
 invite-label: ACA-Py (Admin)
-invite-metadata-json: '{"group": "admin"}'
+invite-metadata-json: '{"roles": "admin"}'
 
 # Credentials and Presentations
 preserve-exchange-records: true
