@@ -26,8 +26,8 @@ from aries_cloudagent.storage.error import StorageNotFoundError
 from aries_cloudagent.storage.base import BaseStorage
 from aries_cloudagent.storage.record import StorageRecord
 from marshmallow import Schema, fields, validate
+from mrgf import Selector, request_context_principal_finder
 
-from mrgf import Selector, request_handler_principal_finder
 from .util import admin_only, generate_model_schema, send_to_admins
 
 PROTOCOL = (
@@ -58,9 +58,6 @@ MESSAGE_TYPES = {
 }
 
 EVENT_PATTERN = re.compile(f"acapy::record::{ConnRecord.RECORD_TOPIC}::.*")
-
-
-selector = Selector(request_handler_principal_finder)
 
 
 async def setup(context: InjectionContext, protocol_registry: ProtocolRegistry = None):
@@ -172,23 +169,12 @@ List, ListSchema = generate_model_schema(
 
 class GetListHandler(BaseHandler):
     """Handler for get connection list request."""
+    selector = Selector(request_context_principal_finder)
 
-    @selector.select
+    @admin_only
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle get connection list request."""
-        report = ProblemReport(
-            description={
-                "en": "This connection is not authorized to perform"
-                " the requested action."
-            },
-            who_retries="none",
-        )
-        report.assign_thread_from(context.message)
-        await responder.send_reply(report)
 
-    @handle.register(lambda p: "admin-connections" in p.privileges)
-    async def admin_handle(self, context: RequestContext, responder: BaseResponder):
-        session = await context.session()
         tag_filter = dict(
             filter(
                 lambda item: item[1] is not None,
@@ -201,15 +187,36 @@ class GetListHandler(BaseHandler):
         # Filter out invitations, admin-invitations will handle those
         post_filter_negative = {"state": ConnRecord.State.INVITATION.rfc160}
         # TODO: Filter on state (needs mapping back to ACA-Py connection states)
-        records = await ConnRecord.query(
-            session, tag_filter, post_filter_negative=post_filter_negative
-        )
+
+        records = await self.retrieve_connections_filtered(context)
+
         results = [
             Connection(**conn_record_to_message_repr(record)) for record in records
         ]
         connection_list = List(connections=results)
         connection_list.assign_thread_from(context.message)
         await responder.send_reply(connection_list)
+
+    @selector.select
+    async def retrieve_connections_filtered(self, context: RequestContext):
+        """Retrieve connections filtered on principal."""
+        return []
+
+    @retrieve_connections_filtered.register(
+        lambda p: "created-connections" in p.privileges
+    )
+    async def created(self, context: RequestContext):
+        """Return connections created by this admin connection."""
+        async with context.session() as session:
+            return (await ConnRecord.query(session))[:1]
+
+    @retrieve_connections_filtered.register(
+        lambda p: "all-connections" in p.privileges
+    )
+    async def all_connections(self, context: RequestContext):
+        """Return connections created by this admin connection."""
+        async with context.session() as session:
+            return await ConnRecord.query(session)
 
 
 Update, UpdateSchema = generate_model_schema(

@@ -3,7 +3,7 @@
 # pylint: disable=too-few-public-methods
 
 import sys
-from typing import Type, Union, Tuple, cast
+from typing import Callable, Type, Union, Tuple, cast
 import logging
 import functools
 import json
@@ -23,6 +23,9 @@ from aries_cloudagent.messaging.base_handler import (
 )
 from aries_cloudagent.messaging.models.base import BaseModel, BaseModelSchema
 from aries_cloudagent.protocols.problem_report.v1_0.message import ProblemReport
+
+from mrgf import request_context_principal_finder
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +53,7 @@ def datetime_from_iso(timestamp: str) -> datetime:
     return isoparse(timestamp)
 
 
-def require_role(role):
+def require(condition: Callable):
     """
     Verify that the current connection has a given role.
 
@@ -61,13 +64,11 @@ def require_role(role):
     def _require_role(func):
         @functools.wraps(func)
         async def _wrapped(*args):
-            context, *_ = [arg for arg in args if isinstance(arg, RequestContext)]
-            responder, *_ = [arg for arg in args if isinstance(arg, BaseResponder)]
-            if context.connection_record:
-                session = await context.session()
-                group = await context.connection_record.metadata_get(session, "group")
-                if group == role:
-                    return await func(*args)
+            [context] = [arg for arg in args if isinstance(arg, RequestContext)]
+            [responder] = [arg for arg in args if isinstance(arg, BaseResponder)]
+            principal = await request_context_principal_finder(context)
+            if condition(principal):
+                return await func(*args)
 
             report = ProblemReport(
                 description={
@@ -86,7 +87,7 @@ def require_role(role):
 
 def admin_only(func):
     """Require admin role."""
-    return require_role("admin")(func)
+    return require(lambda p: "admin" in p.roles)(func)
 
 
 def log_handling(func):

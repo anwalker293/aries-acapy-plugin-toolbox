@@ -2,6 +2,7 @@
 
 import os
 import logging
+from pathlib import Path
 
 from aries_cloudagent.config.injection_context import InjectionContext
 from aries_cloudagent.core.plugin_registry import PluginRegistry
@@ -54,7 +55,10 @@ async def setup(context: InjectionContext):
     plugin_registry = context.inject(PluginRegistry)
     assert plugin_registry
     if "mrgf" not in plugin_registry.plugin_names:
-        await mrgf_setup(context, Config(path="./default.mrgf.json"))
+        await mrgf_setup(
+            context,
+            Config(path=str(Path(__file__).parent / "default.mrgf.json"))
+        )
 
 
 __all__ = ["ProblemReport"]

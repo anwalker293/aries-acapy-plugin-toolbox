@@ -27,12 +27,13 @@ classifiers = [
 packages = [
     { include = "acapy_plugin_toolbox" }
 ]
+include = ["acapy_plugin_toolbox/default.mrgf.json"]
 
 [tool.poetry.dependencies]
 python = "^3.6.9"
 marshmallow = "3.5.1"
 python-dateutil = "^2.8.1"
-mrgf = {git = "https://github.com/dbluhm/mrgf", rev = "7cebbf62a6999d5cdf54dd1e67f3e3e3250f6e91"}
+mrgf = {git = "https://github.com/dbluhm/mrgf", rev = "ed34e55bff20fb40a0dd3646063b59bc4262baaa"}
 
 [tool.poetry.dependencies.aries-cloudagent]
     git = "https://github.com/hyperledger/aries-cloudagent-python"

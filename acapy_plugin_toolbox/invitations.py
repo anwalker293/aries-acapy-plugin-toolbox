@@ -64,6 +64,7 @@ CreateInvitation, CreateInvitationSchema = generate_model_schema(
         "label": fields.Str(required=False),
         "alias": fields.Str(required=False),  # default?
         "group": fields.Str(required=False),
+        "roles": fields.List(fields.Str(), required=False),
         "auto_accept": fields.Boolean(missing=False),
         "multi_use": fields.Boolean(missing=False),
         "mediation_id": fields.Str(required=False),
@@ -76,6 +77,7 @@ BaseInvitationSchema = Schema.from_dict(
         "label": fields.Str(required=False),
         "alias": fields.Str(required=False),  # default?
         "group": fields.Str(required=False),
+        "roles": fields.List(fields.Str(), required=False),
         "auto_accept": fields.Boolean(missing=False),
         "multi_use": fields.Boolean(missing=False),
         "invitation_url": fields.Str(required=True),
@@ -122,11 +124,14 @@ class CreateInvitationHandler(BaseHandler):
         )
         if context.message.group:
             await connection.metadata_set(session, "group", context.message.group)
+        if context.message.roles:
+            await connection.metadata_set(session, "roles", context.message.roles)
         invite_response = Invitation(
             id=connection.connection_id,
             label=invitation.label,
             alias=connection.alias,
             group=context.message.group,
+            roles=context.message.roles,
             auto_accept=connection.accept == ConnRecord.ACCEPT_AUTO,
             multi_use=(connection.invitation_mode == ConnRecord.INVITATION_MODE_MULTI),
             mediation_id=context.message.mediation_id,
@@ -169,12 +174,14 @@ class InvitationGetListHandler(BaseHandler):
             except StorageNotFoundError:
                 continue
             group = await connection.metadata_get(session, "group")
+            roles = await connection.metadata_get(session, "roles")
 
             invite = {
                 "id": connection.connection_id,
                 "label": invitation.label,
                 "alias": connection.alias,
                 "group": group,
+                "roles": roles,
                 "auto_accept": (connection.accept == ConnRecord.ACCEPT_AUTO),
                 "multi_use": (
                     connection.invitation_mode == ConnRecord.INVITATION_MODE_MULTI
