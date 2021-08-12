@@ -16,7 +16,7 @@ RUN poetry install --no-dev
 # Make site packages location more accessible (for use with volumes)
 RUN ln -s $(poetry env info -p)/lib/python3.6/site-packages site-packages
 
-COPY default.mrgf.json .
+COPY acapy_plugin_toolbox/default.mrgf.json .
 COPY acapy_plugin_toolbox acapy_plugin_toolbox
 
 ENTRYPOINT ["/bin/bash", "-c", "poetry run aca-py \"$@\"", "--"]
