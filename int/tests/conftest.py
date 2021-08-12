@@ -133,7 +133,7 @@ def agent_connection(
         client=backchannel,
         conn_id=create_result.record.connection_id,
         json_body=ConnectionMetadataSetRequest.from_dict(
-            {"metadata": {"group": "admin"}}
+            {"metadata": {"roles": "admin"}}
         ),
     )
     if not set_result:
