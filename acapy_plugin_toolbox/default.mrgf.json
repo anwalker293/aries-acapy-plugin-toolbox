@@ -27,6 +27,14 @@
       "name": "admin-invitations",
       "description": "Authorized to administrate invitations",
       "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
+    },
+    {
+      "name": "limited-credentials",
+      "description": "Authorized to interact with only approved cred def ids",
+      "uri": "",
+      "cred_def_ids": [
+        "example:123"
+      ]
     }
   ],
   "rules": [

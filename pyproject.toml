@@ -33,7 +33,7 @@ include = ["acapy_plugin_toolbox/default.mrgf.json"]
 python = "^3.6.9"
 marshmallow = "3.5.1"
 python-dateutil = "^2.8.1"
-mrgf = {git = "https://github.com/dbluhm/mrgf", rev = "ffe98207ccc89f824c895954e6880113b8e28c9e"}
+mrgf = {git = "https://github.com/dbluhm/mrgf", rev = "7671a7611b34982715e56c40bf9c53c0403a8e35"}
 
 [tool.poetry.dependencies.aries-cloudagent]
     git = "https://github.com/hyperledger/aries-cloudagent-python"
