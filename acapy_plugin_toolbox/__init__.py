@@ -56,8 +56,7 @@ async def setup(context: InjectionContext):
     assert plugin_registry
     if "mrgf" not in plugin_registry.plugin_names:
         await mrgf_setup(
-            context,
-            Config(path=str(Path(__file__).parent / "default.mrgf.json"))
+            context, Config(path=str(Path(__file__).parent / "default.mrgf.json"))
         )
 
 
