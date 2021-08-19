@@ -79,9 +79,7 @@ async def connections_event_handler(profile: Profile, event: Event):
         responder = profile.inject(BaseResponder)
         async with profile.session() as session:
             await send_to_admins(
-                session,
-                Connected(**conn_record_to_message_repr(record)),
-                responder,
+                session, Connected(**conn_record_to_message_repr(record)), responder
             )
 
 
@@ -142,14 +140,7 @@ GetList, GetListSchema = generate_model_schema(
     schema={
         "my_did": fields.Str(required=False),
         "state": fields.Str(
-            validate=validate.OneOf(
-                [
-                    "pending",
-                    "active",
-                    "error",
-                ]
-            ),
-            required=False,
+            validate=validate.OneOf(["pending", "active", "error"]), required=False
         ),
         "their_did": fields.Str(required=False),
     },
@@ -238,18 +229,14 @@ Delete, DeleteSchema = generate_model_schema(
     name="Delete",
     handler="acapy_plugin_toolbox.connections.DeleteHandler",
     msg_type=DELETE,
-    schema={
-        "connection_id": fields.Str(required=True),
-    },
+    schema={"connection_id": fields.Str(required=True)},
 )
 
 Deleted, DeletedSchema = generate_model_schema(
     name="Deleted",
     handler="acapy_plugin_toolbox.util.PassHandler",
     msg_type=DELETED,
-    schema={
-        "connection_id": fields.Str(required=True),
-    },
+    schema={"connection_id": fields.Str(required=True)},
 )
 
 
@@ -315,6 +302,7 @@ class ReceiveInvitationHandler(BaseHandler):
             mediation_id=context.message.mediation_id,
         )
         connection_resp = Connection(**conn_record_to_message_repr(connection))
+        connection_resp.assign_thread_from(context.message)
         await responder.send_reply(connection_resp)
         async with context.session() as session:
             conn_record = await ConnRecord.retrieve_by_id(
