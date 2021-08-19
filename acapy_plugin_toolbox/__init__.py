@@ -42,6 +42,8 @@ MODULES = [
     holder,
 ]
 
+DEFAULT_MRGF_PATH = str(Path(__file__).parent / "default.mrgf.json")
+
 
 async def setup(context: InjectionContext):
     """Load Toolbox Plugin."""
@@ -55,9 +57,7 @@ async def setup(context: InjectionContext):
     plugin_registry = context.inject(PluginRegistry)
     assert plugin_registry
     if "mrgf" not in plugin_registry.plugin_names:
-        await mrgf_setup(
-            context, Config(path=str(Path(__file__).parent / "default.mrgf.json"))
-        )
+        await mrgf_setup(context, Config(path=DEFAULT_MRGF_PATH))
 
 
 __all__ = ["ProblemReport"]
