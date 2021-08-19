@@ -344,7 +344,7 @@ async def admin_connections(session: ProfileSession):
     admin_metadata_records = [
         record
         for record in await storage.find_all_records(
-            ConnRecord.RECORD_TYPE_METADATA, {"key": "group"}
+            ConnRecord.RECORD_TYPE_METADATA, {"key": "roles"}
         )
         or []
         if json.loads(record.value) == "admin"

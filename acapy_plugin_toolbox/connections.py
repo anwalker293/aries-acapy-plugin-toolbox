@@ -160,25 +160,12 @@ List, ListSchema = generate_model_schema(
 
 class GetListHandler(BaseHandler):
     """Handler for get connection list request."""
+
     selector = Selector(request_handler_principal_finder)
 
     @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle get connection list request."""
-
-        tag_filter = dict(
-            filter(
-                lambda item: item[1] is not None,
-                {
-                    "my_did": context.message.my_did,
-                    "their_did": context.message.their_did,
-                }.items(),
-            )
-        )
-        # Filter out invitations, admin-invitations will handle those
-        post_filter_negative = {"state": ConnRecord.State.INVITATION.rfc160}
-        # TODO: Filter on state (needs mapping back to ACA-Py connection states)
-
         records = await self.retrieve_connections_filtered(context)
 
         results = [
@@ -193,23 +180,57 @@ class GetListHandler(BaseHandler):
         """Retrieve connections filtered on principal."""
         return []
 
-    @retrieve_connections_filtered.register(
-        lambda p: "created-connections" in p.privileges
-    )
-    async def created(self, context: RequestContext):
-        """Return connections created by this admin connection."""
-        async with context.session() as session:
-            return await retrieve_connection_by_creator(
-                session, context.connection_record.connection_id
-            )
+    def filter_did_state(value: dict, filters: dict):
+        for k, v in filters.items():
+            if v is not None and value[k] != v:
+                return False
+        return True
 
     @retrieve_connections_filtered.register(
-        lambda p: "all-connections" in p.privileges
+        lambda p: "created-connections" in p.privileges,
     )
-    async def all_connections(self, context: RequestContext):
+    async def created(self, context: RequestContext, filter_did_state):
         """Return connections created by this admin connection."""
         async with context.session() as session:
-            return await ConnRecord.query(session)
+            retrieved_connections = await retrieve_connection_by_creator(
+                session, context.connection_record.connection_id
+            )
+            results = [
+                conn
+                for conn in retrieved_connections
+                if filter_did_state(
+                    {
+                        "my_did": context.message.my_did,
+                        "their_did": context.message.their_did,
+                        "state": context.message.state,
+                    },
+                    {
+                        "my_did": retrieved_connections.my_did,
+                        "their_did": retrieved_connections.their_did,
+                        "state": retrieved_connections.state,
+                    },
+                )
+            ]
+            return results
+
+    @retrieve_connections_filtered.register(lambda p: "all-connections" in p.privileges)
+    async def all_connections(self, context: RequestContext):
+        """Return connections created by this admin connection."""
+        tag_filter = dict(
+            filter(
+                lambda item: item[1] is not None,
+                {
+                    "my_did": context.message.my_did,
+                    "their_did": context.message.their_did,
+                }.items(),
+            )
+        )
+        # Filter out invitations, admin-invitations will handle those
+        post_filter_negative = {"state": ConnRecord.State.INVITATION.rfc160}
+        async with context.session() as session:
+            return await ConnRecord.query(
+                session, tag_filter, post_filter_negative=post_filter_negative
+            )
 
 
 Update, UpdateSchema = generate_model_schema(
