@@ -25,7 +25,10 @@ from aries_cloudagent.messaging.models.base import BaseModel, BaseModelSchema
 from aries_cloudagent.protocols.problem_report.v1_0.message import ProblemReport
 
 from mrgf import request_context_principal_finder
-from mrgf.governance_framework import Principal
+from mrgf.governance_framework import (
+    Principal,
+    GovernanceFramework,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -370,33 +373,41 @@ async def send_to_admins(
     message: AgentMessage,
     responder: BaseResponder,
     to_session_only: bool = False,
+    condition="",
 ):
     """Send a message to all admin connections."""
     LOGGER.info("Sending message to admins: %s", message.serialize())
     admins = await admin_connections(session)
     admins = list(filter(lambda admin: admin.state == "active", admins))
     connection_mgr = ConnectionManager(session)
+    framework = session.inject(GovernanceFramework)
     admin_targets = [
-        target
+        (
+            target,
+            framework.connection_to_principal(session, connection=admin),
+        )
         for admin in admins
         for target in await connection_mgr.get_connection_targets(connection=admin)
     ]
 
-    for target in admin_targets:
-        if not to_session_only:
-            await responder.send(
-                message,
-                reply_to_verkey=target.recipient_keys[0],
-                reply_from_verkey=target.sender_key,
-                target=target,
-            )
+    for target, principal in admin_targets:
+        if condition(principal):
+            if not to_session_only:
+                await responder.send(
+                    message,
+                    reply_to_verkey=target.recipient_keys[0],
+                    reply_from_verkey=target.sender_key,
+                    target=target,
+                )
+            else:
+                await responder.send(
+                    message,
+                    reply_to_verkey=target.recipient_keys[0],
+                    reply_from_verkey=target.sender_key,
+                    to_session_only=to_session_only,
+                )
         else:
-            await responder.send(
-                message,
-                reply_to_verkey=target.recipient_keys[0],
-                reply_from_verkey=target.sender_key,
-                to_session_only=to_session_only,
-            )
+            pass
 
 
 class InvalidConnection(Exception):
