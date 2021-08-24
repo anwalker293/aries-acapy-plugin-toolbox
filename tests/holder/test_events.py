@@ -2,13 +2,11 @@
 
 # pylint: disable=redefined-outer-name
 
+from aries_cloudagent.core.profile import Profile
 import pytest
 from acapy_plugin_toolbox.holder import v0_1 as test_module
-from aries_cloudagent.core.event_bus import Event, EventBus
-from aries_cloudagent.core.in_memory import InMemoryProfile
-from aries_cloudagent.core.protocol_registry import ProtocolRegistry
+from aries_cloudagent.core.event_bus import Event
 from aries_cloudagent.indy.holder import IndyHolder
-from aries_cloudagent.messaging.responder import BaseResponder, MockResponder
 from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange import (
     V10CredentialExchange,
 )
@@ -19,24 +17,12 @@ from asynctest import mock
 
 
 @pytest.fixture
-def event_bus():
-    """Event bus fixture."""
-    yield EventBus()
-
-
-@pytest.fixture
-def profile(event_bus):
+def profile(profile: Profile):
     """Profile fixture."""
     holder = mock.MagicMock()
     holder.get_credentials_for_presentation_request_by_referent = mock.CoroutineMock()
-    yield InMemoryProfile.test_profile(
-        bind={
-            EventBus: event_bus,
-            BaseResponder: MockResponder(),
-            ProtocolRegistry: ProtocolRegistry(),
-            IndyHolder: holder,
-        }
-    )
+    profile.context.injector.bind_instance(IndyHolder, holder)
+    yield profile
 
 
 @pytest.fixture
@@ -45,22 +31,10 @@ def context(profile):
     yield profile.context
 
 
-class MockSendToAdmins:
-    """Mock send_to_admins method."""
-
-    def __init__(self):
-        self.message = None
-
-    async def __call__(self, session, message, responder):
-        self.message = message
-
-
 @pytest.fixture
-def mock_send_to_admins():
-    temp = test_module.send_to_admins
-    test_module.send_to_admins = MockSendToAdmins()
-    yield test_module.send_to_admins
-    test_module.send_to_admins = temp
+def mock_send_to_admins(mock_send_to_admins):
+    with mock_send_to_admins(test_module) as mocked:
+        yield mocked
 
 
 @pytest.mark.asyncio

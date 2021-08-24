@@ -1,6 +1,7 @@
 """Common testing fixtures."""
 from contextlib import contextmanager
 import json
+from typing import Callable, Optional
 import pytest
 from aries_cloudagent.connections.models.conn_record import ConnRecord
 from aries_cloudagent.core.in_memory import InMemoryProfile
@@ -101,7 +102,12 @@ class MockSendToAdmins:
         self.message = None
 
     async def __call__(
-        self, session, message, responder, to_session_only: bool = False
+        self,
+        session,
+        message,
+        responder,
+        to_session_only: bool = False,
+        condition: Optional[Callable] = None,
     ):
         self.message = message
 
