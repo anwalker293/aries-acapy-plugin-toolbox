@@ -29,12 +29,22 @@
       "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
     },
     {
+      "name": "admin-credentials",
+      "description": "Authorized to interact with agent using admin-credentials protocol",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
+    },
+    {
       "name": "limited-credentials",
       "description": "Authorized to interact with only approved cred def ids",
-      "uri": "",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections",
       "cred_def_ids": [
         "example:123"
       ]
+    },
+    {
+      "name": "all-credentials",
+      "description": "Authorized to interact with all credentials",
+      "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
     }
   ],
   "rules": [
@@ -51,6 +61,8 @@
         {"roles": "admin"},
         {"roles": "partner"}
       ]
-    }}
+    }},
+    {"grant": ["limited-credentials"], "when": {"roles": "partner"}},
+    {"grant": ["all-credentials"], "when": {"roles": "admin"}}
   ]
 }

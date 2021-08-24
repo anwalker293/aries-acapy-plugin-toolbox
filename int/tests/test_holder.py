@@ -74,7 +74,7 @@ async def create_cred_def(backchannel: Client, endorser_did, create_schema):
 
     async def _create_cred_def(version):
         schema = await create_schema(version)
-        backchannel.timeout = 30
+        backchannel.timeout = 50
         return await publish_cred_def.asyncio(
             client=backchannel,
             json_body=CredentialDefinitionSendRequest(schema_id=schema.sent.schema_id),
@@ -134,7 +134,7 @@ async def test_holder_credential_exchange(
         msg_type="did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/admin-holder/0.1/credential-received"
     )
     records = await asyncio.wait_for(
-        get_issue_credential_records.asyncio(client=backchannel), timeout=20
+        get_issue_credential_records.asyncio(client=backchannel), timeout=40
     )
     assert credential_received["credential_exchange_id"] in [
         record.credential_exchange_id for record in records.results
