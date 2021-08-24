@@ -14,13 +14,26 @@ from asynctest import mock
 
 
 @pytest.fixture
-def mock_admin_connection():
+def mock_admin_connection_factory():
     """Mock connection fixture."""
-    connection = mock.MagicMock(spec=ConnRecord)
-    connection.connection_id = "mock_connection_id"
-    connection.metadata_get = mock.CoroutineMock(return_value="admin")
-    connection.metadata_get_all = mock.CoroutineMock(return_value={"roles": "admin"})
-    yield connection
+
+    def _mock_send_connection():
+        connection = mock.MagicMock(spec=ConnRecord)
+        connection.connection_id = "mock_connection_id"
+        connection.metadata_get = mock.CoroutineMock(return_value="admin")
+        connection.metadata_get_all = mock.CoroutineMock(
+            return_value={"roles": "admin"}
+        )
+        connection.state = "active"
+        return connection
+
+    yield _mock_send_connection
+
+
+@pytest.fixture
+def mock_admin_connection(mock_admin_connection_factory):
+    """Mock connection fixture."""
+    yield mock_admin_connection_factory()
 
 
 @pytest.fixture

@@ -1,15 +1,19 @@
 """Test utilities."""
 
+from aries_cloudagent.messaging.request_context import RequestContext
+from aries_cloudagent.messaging.responder import MockResponder
 import pytest
 from aries_cloudagent.messaging.agent_message import AgentMessage, AgentMessageSchema
 from aries_cloudagent.messaging.models.base import BaseModel, BaseModelSchema
 from marshmallow import fields
+from asynctest import mock
 
 from acapy_plugin_toolbox.util import (
     PassHandler,
     expand_message_class,
     expand_model_class,
 )
+from acapy_plugin_toolbox import util as test_module
 
 
 def test_expand_message_class():
@@ -166,3 +170,43 @@ def test_expand_model_class_fields_from():
     test = TestModel("test")
     assert test.one
     assert TestModel.deserialize(test.serialize())
+
+
+@pytest.mark.asyncio
+async def test_send_to_admins_no_admins(
+    context: RequestContext, mock_responder: MockResponder
+):
+    """Test send_to_admins functionality."""
+    with mock.patch.object(
+        test_module, "connections_where", mock.CoroutineMock(return_value=[])
+    ):
+        await test_module.send_to_admins(
+            context.session(), mock.MagicMock(spec=AgentMessage), mock_responder
+        )
+        assert not mock_responder.messages
+
+
+@pytest.mark.parametrize("num_admins", [1, 3])
+@pytest.mark.asyncio
+async def test_send_to_admins(
+    num_admins,
+    context: RequestContext,
+    mock_responder: MockResponder,
+    mock_admin_connection_factory,
+):
+    """Test send_to_admins functionality."""
+    admins = [mock_admin_connection_factory() for _ in range(num_admins)]
+    mock_conn_mgr = mock.MagicMock()
+    mock_conn_mgr.get_connection_targets = mock.CoroutineMock(
+        return_value=[mock.MagicMock()]
+    )
+    with mock.patch.object(
+        test_module, "connections_where", mock.CoroutineMock(return_value=admins)
+    ), mock.patch.object(
+        test_module, "ConnectionManager", mock.MagicMock(return_value=mock_conn_mgr)
+    ):
+        async with context.session() as session:
+            await test_module.send_to_admins(
+                session, mock.MagicMock(spec=AgentMessage), mock_responder
+            )
+        assert len(mock_responder.messages) == len(admins)

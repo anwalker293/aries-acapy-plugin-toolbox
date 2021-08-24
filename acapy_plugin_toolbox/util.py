@@ -2,18 +2,13 @@
 
 # pylint: disable=too-few-public-methods
 
-import sys
-from typing import Callable, Type, Union, Tuple, cast
-import logging
-import functools
-import json
 from datetime import datetime, timezone
-from dateutil.parser import isoparse
+import functools
+import logging
+import sys
+from typing import Callable, Optional, Tuple, Type, Union, cast
 
 from aries_cloudagent.connections.models.conn_record import ConnRecord
-from aries_cloudagent.protocols.connections.v1_0.manager import ConnectionManager
-from aries_cloudagent.storage.base import BaseStorage
-from aries_cloudagent.storage.error import StorageNotFoundError
 from aries_cloudagent.core.profile import ProfileSession
 from aries_cloudagent.messaging.agent_message import AgentMessage, AgentMessageSchema
 from aries_cloudagent.messaging.base_handler import (
@@ -22,12 +17,14 @@ from aries_cloudagent.messaging.base_handler import (
     RequestContext,
 )
 from aries_cloudagent.messaging.models.base import BaseModel, BaseModelSchema
+from aries_cloudagent.protocols.connections.v1_0.manager import ConnectionManager
 from aries_cloudagent.protocols.problem_report.v1_0.message import ProblemReport
-
-from mrgf import request_context_principal_finder
-from mrgf.governance_framework import (
+from aries_cloudagent.storage.error import StorageNotFoundError
+from dateutil.parser import isoparse
+from mrgf import (
     Principal,
-    GovernanceFramework,
+    connections_where,
+    request_context_principal_finder,
 )
 
 
@@ -341,73 +338,43 @@ class PassHandler(BaseHandler):
         LOGGER.info("Pass: Not handling message of type %s", context.message._type)
 
 
-async def admin_connections(session: ProfileSession):
-    """Return admin connections."""
-    storage = session.inject(BaseStorage)
-    admin_metadata_records = [
-        record
-        for record in await storage.find_all_records(
-            ConnRecord.RECORD_TYPE_METADATA, {"key": "roles"}
-        )
-        or []
-        if json.loads(record.value) == "admin"
-    ]
-    admins = []
-    for record in admin_metadata_records:
-        try:
-            admin = await ConnRecord.retrieve_by_id(
-                session, record.tags["connection_id"]
-            )
-            admins.append(admin)
-        except StorageNotFoundError:
-            # Clean up dangling metadata records of admins
-            LOGGER.debug("Deleteing dangling admin metadata record: %s", admins)
-            await storage.delete_record(record)
-
-    LOGGER.info("Discovered admins: %s", admins)
-    return admins
-
-
 async def send_to_admins(
     session: ProfileSession,
     message: AgentMessage,
     responder: BaseResponder,
     to_session_only: bool = False,
-    condition="",
+    condition: Optional[Callable] = None,
 ):
     """Send a message to all admin connections."""
-    LOGGER.info("Sending message to admins: %s", message.serialize())
-    admins = await admin_connections(session)
+    LOGGER.info("Sending message: %s", message.serialize())
+    if condition:
+        admins = await connections_where(session, condition)
+    else:
+        admins = await connections_where(session, lambda p: "admin" in p.roles)
     admins = list(filter(lambda admin: admin.state == "active", admins))
+    LOGGER.info("Sending message to connections: %s", admins)
     connection_mgr = ConnectionManager(session)
-    framework = session.inject(GovernanceFramework)
     admin_targets = [
-        (
-            target,
-            framework.connection_to_principal(session, connection=admin),
-        )
+        target
         for admin in admins
         for target in await connection_mgr.get_connection_targets(connection=admin)
     ]
 
-    for target, principal in admin_targets:
-        if condition(principal):
-            if not to_session_only:
-                await responder.send(
-                    message,
-                    reply_to_verkey=target.recipient_keys[0],
-                    reply_from_verkey=target.sender_key,
-                    target=target,
-                )
-            else:
-                await responder.send(
-                    message,
-                    reply_to_verkey=target.recipient_keys[0],
-                    reply_from_verkey=target.sender_key,
-                    to_session_only=to_session_only,
-                )
+    for target in admin_targets:
+        if not to_session_only:
+            await responder.send(
+                message,
+                reply_to_verkey=target.recipient_keys[0],
+                reply_from_verkey=target.sender_key,
+                target=target,
+            )
         else:
-            pass
+            await responder.send(
+                message,
+                reply_to_verkey=target.recipient_keys[0],
+                reply_from_verkey=target.sender_key,
+                to_session_only=to_session_only,
+            )
 
 
 class InvalidConnection(Exception):

@@ -1,10 +1,13 @@
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from aries_cloudagent.messaging.base_handler import BaseResponder, RequestContext
 from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange import (
     V10CredentialExchange as CredExRecord,
 )
 from marshmallow import fields, validate
+from mrgf.acapy import request_handler_principal_finder
+from mrgf.governance_framework import GovernanceFramework
+from mrgf.selector import Selector
 
 from ....decorators.pagination import Paginate
 from ....util import admin_only, expand_message_class, log_handling
@@ -17,6 +20,8 @@ class CredGetList(AdminHolderMessage):
     """Credential list retrieval message."""
 
     message_type = "credentials-get-list"
+
+    selector = Selector(request_handler_principal_finder)
 
     class Fields:
         """Credential get list fields."""
@@ -49,7 +54,7 @@ class CredGetList(AdminHolderMessage):
         )
 
     def __init__(
-        self, paginate: Paginate = None, states: Optional[List[str]] = None, **kwargs
+        self, paginate: Paginate, states: Optional[List[str]] = None, **kwargs
     ):
         super().__init__(**kwargs)
         self.paginate = paginate
@@ -59,17 +64,46 @@ class CredGetList(AdminHolderMessage):
     @admin_only
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle received get cred list request."""
-        session = await context.session()
+        async with context.session() as session:
+            credentials = cast(List[CredExRecord], await CredExRecord.query(session))
 
-        credentials = await CredExRecord.query(session)
+            framework = cast(GovernanceFramework, context.inject(GovernanceFramework))
+            credentials = await self.filtered_credentials(framework, credentials)
 
-        if self.states:
-            credentials = [c for c in credentials if c.state in self.states]
+            if self.states:
+                credentials = [c for c in credentials if c.state in self.states]
 
-        credentials, page = self.paginate.apply(credentials)
+            credentials, page = self.paginate.apply(credentials)
 
-        cred_list = CredList(
-            results=[credential.serialize() for credential in credentials], page=page
-        )
-        cred_list.assign_thread_from(context.message)  # self
-        await responder.send_reply(cred_list)
+            cred_list = CredList(
+                results=[credential.serialize() for credential in credentials],
+                page=page,
+            )
+            cred_list.assign_thread_from(context.message)  # self
+            await responder.send_reply(cred_list)
+
+    @selector.select
+    async def filtered_credentials(
+        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+    ):
+        """Return filtered credentials according to privileges of this connection."""
+        return []
+
+    @filtered_credentials.register(lambda p: "limited-credentials" in p.privileges)
+    async def filtered_credentials_for_limited(
+        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+    ):
+        """Return filtered credentials for limited-credentials privileged connections."""
+        approved = framework.privilege("limited-privilege").extra["cred_def_ids"]
+
+        credentials = [
+            cred for cred in credentials if cred.credential_definition_id in approved
+        ]
+        return credentials
+
+    @filtered_credentials.register(lambda p: "all-credentials" in p.privileges)
+    async def filtered_credentials_for_all(
+        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+    ):
+        """Return all credentials for all-credentials privileged connections."""
+        return credentials
