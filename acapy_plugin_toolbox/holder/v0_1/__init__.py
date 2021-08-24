@@ -132,12 +132,12 @@ async def issue_credential_event_handler(profile: Profile, event: Event):
         LOGGER.debug("Prepared Message: %s", message.serialize())
 
     framework = profile.inject(GovernanceFramework)
+    assert framework
+    approved = framework.privilege("limited-credentials").extra["cred_def_ids"]
 
     def send_condition(principal: Principal):
         # TODO generalize privilege?
-        assert framework
         if "limited-credentials" in principal.privileges:
-            approved = framework.privilege("limited-credentials").extra["cred_def_ids"]
             return record.credential_definition_id in approved
         if "all-credentials" in principal.privileges:
             return True
