@@ -11,7 +11,6 @@ from aries_cloudagent.config.injection_context import InjectionContext
 from aries_cloudagent.core.event_bus import Event, EventBus
 from aries_cloudagent.core.profile import Profile
 from aries_cloudagent.core.protocol_registry import ProtocolRegistry
-from aries_cloudagent.messaging.agent_message import AgentMessage
 from aries_cloudagent.messaging.base_handler import BaseResponder
 from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange import (
     V10CredentialExchange as CredExRecord,
@@ -19,6 +18,7 @@ from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange
 from aries_cloudagent.protocols.present_proof.v1_0.models.presentation_exchange import (
     V10PresentationExchange as PresExRecord,
 )
+from mrgf.governance_framework import GovernanceFramework, Principal
 
 from ...util import send_to_admins
 from .messages import (
@@ -121,6 +121,7 @@ async def issue_credential_event_handler(profile: Profile, event: Event):
         return
 
     responder = profile.inject(BaseResponder)
+    assert responder
     message = None
     if record.state == CredExRecord.STATE_OFFER_RECEIVED:
         message = CredOfferRecv(record=record)
@@ -130,8 +131,21 @@ async def issue_credential_event_handler(profile: Profile, event: Event):
         message = CredReceived(record=record)
         LOGGER.debug("Prepared Message: %s", message.serialize())
 
-    async with profile.session() as session:
-        await send_to_admins(session, message, responder)
+    framework = profile.inject(GovernanceFramework)
+    assert framework
+    approved = framework.privilege("limited-credentials").extra["cred_def_ids"]
+
+    def send_condition(principal: Principal):
+        # TODO generalize privilege?
+        if "limited-credentials" in principal.privileges:
+            return record.credential_definition_id in approved
+        if "all-credentials" in principal.privileges:
+            return True
+        return False
+
+    if message:
+        async with profile.session() as session:
+            await send_to_admins(session, message, responder, condition=send_condition)
 
 
 async def present_proof_event_handler(profile: Profile, event: Event):
