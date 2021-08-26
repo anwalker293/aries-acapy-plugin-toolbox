@@ -180,7 +180,7 @@ class GetListHandler(BaseHandler):
         """Retrieve connections filtered on principal."""
         return []
 
-    def filter_did_state(value: dict, filters: dict):
+    def filter_did_state(self, value: dict, filters: dict):
         for k, v in filters.items():
             if v is not None and value[k] != v:
                 return False
@@ -189,7 +189,7 @@ class GetListHandler(BaseHandler):
     @retrieve_connections_filtered.register(
         lambda p: "created-connections" in p.privileges,
     )
-    async def created(self, context: RequestContext, filter_did_state):
+    async def created(self, context: RequestContext):
         """Return connections created by this admin connection."""
         async with context.session() as session:
             retrieved_connections = await retrieve_connection_by_creator(
@@ -198,7 +198,7 @@ class GetListHandler(BaseHandler):
             results = [
                 conn
                 for conn in retrieved_connections
-                if filter_did_state(
+                if self.filter_did_state(
                     {
                         "my_did": context.message.my_did,
                         "their_did": context.message.their_did,
