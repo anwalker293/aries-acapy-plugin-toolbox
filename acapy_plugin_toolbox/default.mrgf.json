@@ -29,8 +29,8 @@
       "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
     },
     {
-      "name": "admin-credentials",
-      "description": "Authorized to interact with agent using admin-credentials protocol",
+      "name": "admin-holder",
+      "description": "Authorized to interact with agent using admin-holder protocol",
       "uri": "https://github.com/hyperledger/aries-acapy-plugin-toolbox/docs/mrgf/admin-connections"
     },
     {
@@ -48,7 +48,7 @@
     }
   ],
   "rules": [
-    {"grant": ["admin-connections"], "when": {
+    {"grant": ["admin-connections", "admin-invitations", "admin-holder"], "when": {
       "any": [
         {"roles": "admin"},
         {"roles": "partner"}
@@ -56,12 +56,6 @@
     }},
     {"grant": ["all-connections"], "when": {"roles": "admin"}},
     {"grant": ["created-connections"], "when": {"roles": "partner"}},
-    {"grant": ["admin-invitations"], "when": {
-      "any": [
-        {"roles": "admin"},
-        {"roles": "partner"}
-      ]
-    }},
     {"grant": ["limited-credentials"], "when": {"roles": "partner"}},
     {"grant": ["all-credentials"], "when": {"roles": "admin"}}
   ]

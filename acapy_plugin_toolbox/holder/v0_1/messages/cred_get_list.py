@@ -10,7 +10,7 @@ from mrgf.governance_framework import GovernanceFramework
 from mrgf.selector import Selector
 
 from ....decorators.pagination import Paginate
-from ....util import admin_only, expand_message_class, log_handling
+from ....util import expand_message_class, log_handling, require
 from .base import AdminHolderMessage
 from .cred_list import CredList
 
@@ -61,14 +61,13 @@ class CredGetList(AdminHolderMessage):
         self.states = states
 
     @log_handling
-    @admin_only
+    @require(lambda p: "admin-holder" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle received get cred list request."""
         async with context.session() as session:
             credentials = cast(List[CredExRecord], await CredExRecord.query(session))
 
-            framework = cast(GovernanceFramework, context.inject(GovernanceFramework))
-            credentials = await self.filtered_credentials(framework, credentials)
+            credentials = await self.filtered_credentials(context, credentials)
 
             if self.states:
                 credentials = [c for c in credentials if c.state in self.states]
@@ -84,17 +83,22 @@ class CredGetList(AdminHolderMessage):
 
     @selector.select
     async def filtered_credentials(
-        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+        self,
+        context: RequestContext,
+        credentials: List[CredExRecord],
     ):
         """Return filtered credentials according to privileges of this connection."""
         return []
 
     @filtered_credentials.register(lambda p: "limited-credentials" in p.privileges)
     async def filtered_credentials_for_limited(
-        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+        self,
+        context: RequestContext,
+        credentials: List[CredExRecord],
     ):
         """Return filtered credentials for limited-credentials privileged connections."""
-        approved = framework.privilege("limited-privilege").extra["cred_def_ids"]
+        framework = cast(GovernanceFramework, context.inject(GovernanceFramework))
+        approved = framework.privilege("limited-credentials").extra["cred_def_ids"]
 
         credentials = [
             cred for cred in credentials if cred.credential_definition_id in approved
@@ -103,7 +107,9 @@ class CredGetList(AdminHolderMessage):
 
     @filtered_credentials.register(lambda p: "all-credentials" in p.privileges)
     async def filtered_credentials_for_all(
-        self, framework: GovernanceFramework, credentials: List[CredExRecord]
+        self,
+        context: RequestContext,
+        credentials: List[CredExRecord],
     ):
         """Return all credentials for all-credentials privileged connections."""
         return credentials
