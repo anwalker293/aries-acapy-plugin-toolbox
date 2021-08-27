@@ -132,6 +132,9 @@ async def test_filtered_credentials_limited_privileged_cred_present(
     create_mock_connection_record,
     create_mock_credential,
 ):
+    """Test that the correct credential is returned when its mock_cred_def_id
+    matches that which the connection is privileged to access
+    """
     mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
@@ -152,6 +155,9 @@ async def test_filtered_credentials_limited_privileged_cred_absent(
     create_mock_connection_record,
     create_mock_credential,
 ):
+    """Test that a credential that the connection is not
+    privileged to access is not returned
+    """
     mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
@@ -173,6 +179,9 @@ async def test_filtered_credentials_limited_privileged_cred_among_unprivileged_c
     create_mock_connection_record,
     create_mock_credential,
 ):
+    """Test that the only correct credential is returned from a list including
+    credentials that the connection is not privileged to access
+    """
     mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
@@ -187,3 +196,19 @@ async def test_filtered_credentials_limited_privileged_cred_among_unprivileged_c
     mock_credentials_list = [mock_credential1, mock_credential2]
     result = await message.filtered_credentials(context, mock_credentials_list)
     assert result == [mock_credential1]
+
+
+@pytest.mark.asyncio
+async def test_all_credentials(
+    context: RequestContext, message: CredGetList, create_mock_credential
+):
+    """Test that all credentials are returned when
+    connection is in default admin role
+    """
+    mock_credential1 = await create_mock_credential()
+    mock_credential2 = await create_mock_credential()
+
+    result = await message.filtered_credentials(
+        context, [mock_credential1, mock_credential2]
+    )
+    assert result == [mock_credential1, mock_credential2]
