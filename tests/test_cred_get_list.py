@@ -1,6 +1,6 @@
 """Test CredGetList message and handler."""
 import pytest
-from typing import Optional
+from typing import Optional, Union, Set
 from acapy_plugin_toolbox.holder import v0_1 as test_module
 from acapy_plugin_toolbox.holder.v0_1 import CredGetList, CredList
 from acapy_plugin_toolbox.decorators.pagination import Paginate
@@ -57,9 +57,13 @@ def mock_record_query():
 
 @pytest.fixture
 def create_mock_connection_record(context: RequestContext, message: CredGetList):
-    async def _create_mock_connection_record():
+    def _create_mock_connection_record(roles: Optional[Union[str, Set[str]]] = None):
         mocked_connection_record = mock.MagicMock(spec=ConnRecord)
         mocked_connection_record.connection_id = "mocked connection id"
+        mocked_connection_record.metadata_get_all = mock.CoroutineMock(
+            return_value={} if not roles else {"roles": roles}
+        )
+        context.connection_record = mocked_connection_record
         return mocked_connection_record
 
     yield _create_mock_connection_record
@@ -104,8 +108,7 @@ async def test_filtered_credentials_default(
     """Test that no privileges on principal derived from context results in no
     returned credentials.
     """
-    mocked_connection_record = await create_mock_connection_record()
-    context.connection_record = mocked_connection_record
+    create_mock_connection_record()
 
     credentials = [mock.MagicMock(spec=CredExRecord)]
     result = await message.filtered_credentials(context, credentials)
@@ -119,8 +122,8 @@ async def test_filtered_credentials_default_empty(
     """Test that no privileges on principal derived from context results in no
     returned credentials.
     """
-    mocked_connection_record = await create_mock_connection_record()
-    context.connection_record = mocked_connection_record
+    create_mock_connection_record()
+
     result = await message.filtered_credentials(context, [])
     assert result == []
 
@@ -136,11 +139,7 @@ async def test_filtered_credentials_limited_privileged_cred_present(
     """Test that the correct credential is returned when its mock_cred_def_id
     matches that which the connection is privileged to access
     """
-    mocked_connection_record = await create_mock_connection_record()
-    mocked_connection_record.metadata_get_all = mock.CoroutineMock(
-        return_value={"roles": "partner"}
-    )
-    context.connection_record = mocked_connection_record
+    create_mock_connection_record(roles="partner")
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
     mock_credential = create_mock_credential()
@@ -159,11 +158,7 @@ async def test_filtered_credentials_limited_privileged_cred_absent(
     """Test that a credential that the connection is not
     privileged to access is not returned
     """
-    mocked_connection_record = await create_mock_connection_record()
-    mocked_connection_record.metadata_get_all = mock.CoroutineMock(
-        return_value={"roles": "partner"}
-    )
-    context.connection_record = mocked_connection_record
+    create_mock_connection_record(roles="partner")
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
     mock_credential = create_mock_credential("other_mock_cred_def_id")
@@ -182,11 +177,7 @@ async def test_filtered_credentials_limited_privileged_cred_among_unprivileged_c
     """Test that the only correct credential is returned from a list including
     credentials that the connection is not privileged to access
     """
-    mocked_connection_record = await create_mock_connection_record()
-    mocked_connection_record.metadata_get_all = mock.CoroutineMock(
-        return_value={"roles": "partner"}
-    )
-    context.connection_record = mocked_connection_record
+    create_mock_connection_record(roles="partner")
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
     mock_credential1 = create_mock_credential()
