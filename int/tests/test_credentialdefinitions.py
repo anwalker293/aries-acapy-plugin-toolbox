@@ -88,7 +88,7 @@ async def test_cred_def_get_list(connection, endorser_did, create_schema):
             "schema_id": schema1_3.sent.schema_id,
             "~transport": {"return_route": "all"},
         },
-        timeout=30,
+        timeout=50,
     )
     cred_def_get_list = await connection.send_and_await_reply_async(
         {
