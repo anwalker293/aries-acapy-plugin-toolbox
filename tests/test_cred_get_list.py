@@ -1,5 +1,6 @@
 """Test CredGetList message and handler."""
 import pytest
+from typing import Optional
 from acapy_plugin_toolbox.holder import v0_1 as test_module
 from acapy_plugin_toolbox.holder.v0_1 import CredGetList, CredList
 from acapy_plugin_toolbox.decorators.pagination import Paginate
@@ -68,9 +69,9 @@ def create_mock_connection_record(context: RequestContext, message: CredGetList)
 def create_mock_credential(
     context: RequestContext, message: CredGetList, mrgf: GovernanceFramework
 ):
-    async def _create_mock_credential():
+    def _create_mock_credential(cred_def_id: Optional[str] = None):
         mock_credential = mock.MagicMock(spec=CredExRecord)
-        mock_credential.credential_definition_id = "mock_cred_def_id"
+        mock_credential.credential_definition_id = cred_def_id or "mock_cred_def_id"
         return mock_credential
 
     yield _create_mock_credential
@@ -142,7 +143,7 @@ async def test_filtered_credentials_limited_privileged_cred_present(
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential = await create_mock_credential()
+    mock_credential = create_mock_credential()
     result = await message.filtered_credentials(context, [mock_credential])
     assert result == [mock_credential]
 
@@ -165,8 +166,7 @@ async def test_filtered_credentials_limited_privileged_cred_absent(
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential = await create_mock_credential()
-    mock_credential.credential_definition_id = "other_mock_cred_def_id"
+    mock_credential = create_mock_credential("other_mock_cred_def_id")
     result = await message.filtered_credentials(context, [mock_credential])
     assert result == []
 
@@ -189,9 +189,8 @@ async def test_filtered_credentials_limited_privileged_cred_among_unprivileged_c
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential1 = await create_mock_credential()
-    mock_credential2 = await create_mock_credential()
-    mock_credential2.credential_definition_id = "other_mock_cred_def_id"
+    mock_credential1 = create_mock_credential()
+    mock_credential2 = create_mock_credential("other_mock_cred_def_id")
 
     mock_credentials_list = [mock_credential1, mock_credential2]
     result = await message.filtered_credentials(context, mock_credentials_list)
@@ -205,8 +204,8 @@ async def test_all_credentials(
     """Test that all credentials are returned when
     connection is in default admin role
     """
-    mock_credential1 = await create_mock_credential()
-    mock_credential2 = await create_mock_credential()
+    mock_credential1 = create_mock_credential()
+    mock_credential2 = create_mock_credential()
 
     result = await message.filtered_credentials(
         context, [mock_credential1, mock_credential2]
