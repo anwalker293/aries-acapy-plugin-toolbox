@@ -54,6 +54,28 @@ def mock_record_query():
     yield _mock_record_query
 
 
+@pytest.fixture
+def create_mock_connection_record(context: RequestContext, message: CredGetList):
+    async def _create_mock_connection_record():
+        mocked_connection_record = mock.MagicMock(spec=ConnRecord)
+        mocked_connection_record.connection_id = "mocked connection id"
+        return mocked_connection_record
+
+    yield _create_mock_connection_record
+
+
+@pytest.fixture
+def create_mock_credential(
+    context: RequestContext, message: CredGetList, mrgf: GovernanceFramework
+):
+    async def _create_mock_credential():
+        mock_credential = mock.MagicMock(spec=CredExRecord)
+        mock_credential.credential_definition_id = "mock_cred_def_id"
+        return mock_credential
+
+    yield _create_mock_credential
+
+
 @pytest.mark.asyncio
 async def test_handler(
     context, mock_responder, message, mock_record_query, cred_record
@@ -76,13 +98,12 @@ async def test_handler(
 
 @pytest.mark.asyncio
 async def test_filtered_credentials_default(
-    context: RequestContext, message: CredGetList
+    context: RequestContext, message: CredGetList, create_mock_connection_record
 ):
     """Test that no privileges on principal derived from context results in no
     returned credentials.
     """
-    mocked_connection_record = mock.MagicMock(spec=ConnRecord)
-    mocked_connection_record.connection_id = "mocked connection id"
+    mocked_connection_record = await create_mock_connection_record()
     context.connection_record = mocked_connection_record
 
     credentials = [mock.MagicMock(spec=CredExRecord)]
@@ -92,13 +113,12 @@ async def test_filtered_credentials_default(
 
 @pytest.mark.asyncio
 async def test_filtered_credentials_default_empty(
-    context: RequestContext, message: CredGetList
+    context: RequestContext, message: CredGetList, create_mock_connection_record
 ):
     """Test that no privileges on principal derived from context results in no
     returned credentials.
     """
-    mocked_connection_record = mock.MagicMock(spec=ConnRecord)
-    mocked_connection_record.connection_id = "mocked connection id"
+    mocked_connection_record = await create_mock_connection_record()
     context.connection_record = mocked_connection_record
     result = await message.filtered_credentials(context, [])
     assert result == []
@@ -106,35 +126,40 @@ async def test_filtered_credentials_default_empty(
 
 @pytest.mark.asyncio
 async def test_filtered_credentials_limited_privileged_cred_present(
-    context: RequestContext, message: CredGetList, mrgf: GovernanceFramework
+    context: RequestContext,
+    message: CredGetList,
+    mrgf: GovernanceFramework,
+    create_mock_connection_record,
+    create_mock_credential,
 ):
-    mocked_connection_record = mock.MagicMock(spec=ConnRecord)
-    mocked_connection_record.connection_id = "mocked connection id"
+    mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
     )
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential = mock.MagicMock(spec=CredExRecord)
-    mock_credential.credential_definition_id = "mock_cred_def_id"
+    mock_credential = await create_mock_credential()
     result = await message.filtered_credentials(context, [mock_credential])
     assert result == [mock_credential]
 
 
 @pytest.mark.asyncio
 async def test_filtered_credentials_limited_privileged_cred_absent(
-    context: RequestContext, message: CredGetList, mrgf: GovernanceFramework
+    context: RequestContext,
+    message: CredGetList,
+    mrgf: GovernanceFramework,
+    create_mock_connection_record,
+    create_mock_credential,
 ):
-    mocked_connection_record = mock.MagicMock(spec=ConnRecord)
-    mocked_connection_record.connection_id = "mocked connection id"
+    mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
     )
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential = mock.MagicMock(spec=CredExRecord)
+    mock_credential = await create_mock_credential()
     mock_credential.credential_definition_id = "other_mock_cred_def_id"
     result = await message.filtered_credentials(context, [mock_credential])
     assert result == []
@@ -142,19 +167,21 @@ async def test_filtered_credentials_limited_privileged_cred_absent(
 
 @pytest.mark.asyncio
 async def test_filtered_credentials_limited_privileged_cred_among_unprivileged_creds(
-    context: RequestContext, message: CredGetList, mrgf: GovernanceFramework
+    context: RequestContext,
+    message: CredGetList,
+    mrgf: GovernanceFramework,
+    create_mock_connection_record,
+    create_mock_credential,
 ):
-    mocked_connection_record = mock.MagicMock(spec=ConnRecord)
-    mocked_connection_record.connection_id = "mocked connection id"
+    mocked_connection_record = await create_mock_connection_record()
     mocked_connection_record.metadata_get_all = mock.CoroutineMock(
         return_value={"roles": "partner"}
     )
     context.connection_record = mocked_connection_record
 
     mrgf.privilege("limited-credentials").extra["cred_def_ids"] = ["mock_cred_def_id"]
-    mock_credential1 = mock.MagicMock(spec=CredExRecord)
-    mock_credential1.credential_definition_id = "mock_cred_def_id"
-    mock_credential2 = mock.MagicMock(spec=CredExRecord)
+    mock_credential1 = await create_mock_credential()
+    mock_credential2 = await create_mock_credential()
     mock_credential2.credential_definition_id = "other_mock_cred_def_id"
 
     mock_credentials_list = [mock_credential1, mock_credential2]
