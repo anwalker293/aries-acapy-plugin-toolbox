@@ -101,6 +101,25 @@ async def test_handler(
     assert cred_list.page.count == 1
 
 
+privileges = ["", "partner", "admin"]
+
+
+@pytest.mark.parametrize("privilege", privileges)
+@pytest.mark.asyncio
+async def test_filtered_credentials_empty(
+    context: RequestContext,
+    message: CredGetList,
+    create_mock_connection_record,
+    privilege,
+):
+    """Test that an empty list passed in returns
+    an empty list for all privileges
+    """
+    create_mock_connection_record(privilege)
+    result = await message.filtered_credentials(context, [])
+    assert result == []
+
+
 @pytest.mark.asyncio
 async def test_filtered_credentials_default(
     context: RequestContext, message: CredGetList, create_mock_connection_record
@@ -112,19 +131,6 @@ async def test_filtered_credentials_default(
 
     credentials = [mock.MagicMock(spec=CredExRecord)]
     result = await message.filtered_credentials(context, credentials)
-    assert result == []
-
-
-@pytest.mark.asyncio
-async def test_filtered_credentials_default_empty(
-    context: RequestContext, message: CredGetList, create_mock_connection_record
-):
-    """Test that no privileges on principal derived from context results in no
-    returned credentials.
-    """
-    create_mock_connection_record()
-
-    result = await message.filtered_credentials(context, [])
     assert result == []
 
 
