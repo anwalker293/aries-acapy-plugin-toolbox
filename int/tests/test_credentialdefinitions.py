@@ -34,7 +34,7 @@ async def test_send_cred_def(connection, endorser_did, create_schema):
             "schema_id": schema.sent.schema_id,
             "~transport": {"return_route": "all"},
         },
-        timeout=30,
+        timeout=50,
     )
     assert (
         send_cred_def["@type"]
