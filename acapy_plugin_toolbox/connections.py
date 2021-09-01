@@ -198,7 +198,7 @@ class GetListHandler(BaseHandler):
             results = [
                 conn
                 for conn in retrieved_connections
-                if GetListHandler.filter_did_state(
+                if self.filter_did_state(
                     {
                         "my_did": context.message.my_did,
                         "their_did": context.message.their_did,
