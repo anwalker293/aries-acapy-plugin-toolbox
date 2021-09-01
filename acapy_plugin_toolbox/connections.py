@@ -4,7 +4,7 @@
 # pylint: disable=too-few-public-methods
 
 import re
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Sequence, cast
 import json
 
 
@@ -26,7 +26,7 @@ from aries_cloudagent.storage.error import StorageNotFoundError
 from aries_cloudagent.storage.base import BaseStorage
 from aries_cloudagent.storage.record import StorageRecord
 from marshmallow import Schema, fields, validate
-from mrgf import Selector, request_handler_principal_finder
+from mrgf import context_to_principal
 
 from .util import generate_model_schema, require, send_to_admins
 
@@ -161,8 +161,6 @@ List, ListSchema = generate_model_schema(
 class GetListHandler(BaseHandler):
     """Handler for get connection list request."""
 
-    selector = Selector(request_handler_principal_finder)
-
     @require(lambda p: "admin-connections" in p.privileges)
     async def handle(self, context: RequestContext, responder: BaseResponder):
         """Handle get connection list request."""
@@ -175,20 +173,22 @@ class GetListHandler(BaseHandler):
         connection_list.assign_thread_from(context.message)
         await responder.send_reply(connection_list)
 
-    @selector.select
     async def retrieve_connections_filtered(self, context: RequestContext):
-        """Retrieve connections filtered on principal."""
+        """Retrieve connections filtered for principal."""
+        principal = await context_to_principal(context)
+        if "created-connections" in principal.privileges:
+            return await self.created(context)
+        elif "all-connections" in principal.privileges:
+            return await self.all_connections(context)
         return []
 
-    def filter_did_state(self, value: dict, filters: dict):
+    @staticmethod
+    def filter_did_state(value: dict, filters: dict):
         for k, v in filters.items():
             if v is not None and value[k] != v:
                 return False
         return True
 
-    @retrieve_connections_filtered.register(
-        lambda p: "created-connections" in p.privileges,
-    )
     async def created(self, context: RequestContext):
         """Return connections created by this admin connection."""
         async with context.session() as session:
@@ -198,7 +198,7 @@ class GetListHandler(BaseHandler):
             results = [
                 conn
                 for conn in retrieved_connections
-                if self.filter_did_state(
+                if GetListHandler.filter_did_state(
                     {
                         "my_did": context.message.my_did,
                         "their_did": context.message.their_did,
@@ -213,7 +213,6 @@ class GetListHandler(BaseHandler):
             ]
             return results
 
-    @retrieve_connections_filtered.register(lambda p: "all-connections" in p.privileges)
     async def all_connections(self, context: RequestContext):
         """Return connections created by this admin connection."""
         tag_filter = dict(
@@ -228,8 +227,11 @@ class GetListHandler(BaseHandler):
         # Filter out invitations, admin-invitations will handle those
         post_filter_negative = {"state": ConnRecord.State.INVITATION.rfc160}
         async with context.session() as session:
-            return await ConnRecord.query(
-                session, tag_filter, post_filter_negative=post_filter_negative
+            return cast(
+                Sequence[ConnRecord],
+                await ConnRecord.query(
+                    session, tag_filter, post_filter_negative=post_filter_negative
+                ),
             )
 
 

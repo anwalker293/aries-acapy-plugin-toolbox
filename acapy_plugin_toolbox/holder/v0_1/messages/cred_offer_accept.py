@@ -12,9 +12,7 @@ from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange
 )
 from aries_cloudagent.storage.error import StorageError
 from marshmallow import fields
-from mrgf.acapy import request_handler_principal_finder
-from mrgf.governance_framework import GovernanceFramework
-from mrgf.selector import Selector
+from mrgf import GovernanceFramework, context_to_principal
 
 from ....util import (
     ExceptionReporter,
@@ -36,7 +34,6 @@ class CredOfferAccept(AdminHolderMessage):
     """Credential offer accept message."""
 
     message_type = "credential-offer-accept"
-    selector = Selector(request_handler_principal_finder)
 
     class Fields:
         """Fields of cred offer accept message."""
@@ -88,24 +85,16 @@ class CredOfferAccept(AdminHolderMessage):
         await responder.send(credential_request_message, connection_id=connection_id)
         await responder.send_reply(sent)
 
-    @selector.select
     async def authorized_to_accept(
         self, context: RequestContext, cred_ex_record: CredExRecord
-    ):
-        """Determine if a connection is authorized to accept this credential.
-
-        Raises:
-            AuthorizationError: When connection is not authorized to accept offer.
-        """
+    ) -> bool:
+        principal = await context_to_principal(context)
+        if "all-credentials" in principal.privileges:
+            return True
+        elif "limited-credentials" in principal.privileges:
+            return await self.authorized_to_accept_limited(context, cred_ex_record)
         return False
 
-    @authorized_to_accept.register(lambda p: "all-credentials" in p.privileges)
-    async def authorized_to_accept_all(
-        self, context: RequestContext, cred_ex_record: CredExRecord
-    ):
-        return True
-
-    @authorized_to_accept.register(lambda p: "limited-credentials" in p.privileges)
     async def authorized_to_accept_limited(
         self, context: RequestContext, cred_ex_record: CredExRecord
     ):

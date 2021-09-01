@@ -5,9 +5,7 @@ from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange
     V10CredentialExchange as CredExRecord,
 )
 from marshmallow import fields, validate
-from mrgf.acapy import request_handler_principal_finder
-from mrgf.governance_framework import GovernanceFramework
-from mrgf.selector import Selector
+from mrgf import context_to_principal, GovernanceFramework
 
 from ....decorators.pagination import Paginate
 from ....util import expand_message_class, log_handling, require
@@ -20,8 +18,6 @@ class CredGetList(AdminHolderMessage):
     """Credential list retrieval message."""
 
     message_type = "credentials-get-list"
-
-    selector = Selector(request_handler_principal_finder)
 
     class Fields:
         """Credential get list fields."""
@@ -81,16 +77,17 @@ class CredGetList(AdminHolderMessage):
             cred_list.assign_thread_from(context.message)  # self
             await responder.send_reply(cred_list)
 
-    @selector.select
     async def filtered_credentials(
-        self,
-        context: RequestContext,
-        credentials: List[CredExRecord],
+        self, context: RequestContext, credentials: List[CredExRecord]
     ):
-        """Return filtered credentials according to privileges of this connection."""
+        principal = await context_to_principal(context)
+        if "limited-credentials" in principal.privileges:
+            return await self.filtered_credentials_for_limited(context, credentials)
+        elif "all-credentials" in principal.privileges:
+            return credentials
+
         return []
 
-    @filtered_credentials.register(lambda p: "limited-credentials" in p.privileges)
     async def filtered_credentials_for_limited(
         self,
         context: RequestContext,
@@ -103,13 +100,4 @@ class CredGetList(AdminHolderMessage):
         credentials = [
             cred for cred in credentials if cred.credential_definition_id in approved
         ]
-        return credentials
-
-    @filtered_credentials.register(lambda p: "all-credentials" in p.privileges)
-    async def filtered_credentials_for_all(
-        self,
-        context: RequestContext,
-        credentials: List[CredExRecord],
-    ):
-        """Return all credentials for all-credentials privileged connections."""
         return credentials

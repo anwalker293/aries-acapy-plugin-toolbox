@@ -24,7 +24,7 @@ from dateutil.parser import isoparse
 from mrgf import (
     Principal,
     connections_where,
-    request_context_principal_finder,
+    context_to_principal,
 )
 
 
@@ -67,7 +67,7 @@ def require(condition: Callable):
         async def _wrapped(*args):
             [context] = [arg for arg in args if isinstance(arg, RequestContext)]
             [responder] = [arg for arg in args if isinstance(arg, BaseResponder)]
-            principal: Principal = await request_context_principal_finder(context)
+            principal: Principal = await context_to_principal(context)
 
             if condition(principal):
                 return await func(*args)
