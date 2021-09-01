@@ -41,3 +41,19 @@ def mock_get_pres_ex_record():
             yield get_pres_ex_record
 
     yield _mock_get_pres_ex_record
+
+
+@pytest.fixture
+def mock_retrieve_by_id():
+    """Mock get_pres_ex_record."""
+
+    @contextmanager
+    def _mock_retrieve_by_id(obj, result=None, spec=None):
+        with mock.patch.object(
+            obj,
+            "retrieve_by_id",
+            mock.CoroutineMock(return_value=result or mock.MagicMock(spec=spec)),
+        ) as record_retrieve_by_id:
+            yield record_retrieve_by_id
+
+    yield _mock_retrieve_by_id

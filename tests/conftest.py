@@ -26,6 +26,7 @@ def mock_admin_connection_factory():
             return_value={"roles": "admin"}
         )
         connection.state = "active"
+        connection.my_did = "mock_my_did"
         return connection
 
     yield _mock_send_connection

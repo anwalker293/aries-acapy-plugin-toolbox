@@ -1,18 +1,19 @@
 """Test CredGetList message and handler."""
-import pytest
-from typing import Optional, Union, Set
-from acapy_plugin_toolbox.holder import v0_1 as test_module
-from acapy_plugin_toolbox.holder.v0_1 import CredGetList, CredList
-from acapy_plugin_toolbox.decorators.pagination import Paginate
 from contextlib import contextmanager
-from asynctest import mock
+from typing import Optional, Set, Union
 
-from aries_cloudagent.messaging.base_handler import RequestContext
-from mrgf.governance_framework import GovernanceFramework
 from aries_cloudagent.connections.models.conn_record import ConnRecord
+from aries_cloudagent.messaging.base_handler import RequestContext
 from aries_cloudagent.protocols.issue_credential.v1_0.models.credential_exchange import (
     V10CredentialExchange as CredExRecord,
 )
+from asynctest import mock
+from mrgf.governance_framework import GovernanceFramework
+import pytest
+
+from acapy_plugin_toolbox.decorators.pagination import Paginate
+from acapy_plugin_toolbox.holder import v0_1 as test_module
+from acapy_plugin_toolbox.holder.v0_1 import CredGetList, CredList
 
 
 @pytest.fixture
