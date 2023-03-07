@@ -1,8 +1,7 @@
 name: Tests
 on:
   push:
-    branches: 
-      - "*"
+    branches: [ dependabot/pip/certifi-2022.12.7 ]
   pull_request:
 
 env:
