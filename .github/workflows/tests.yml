@@ -49,7 +49,6 @@ jobs:
     - name: Run unit tests with pytest
       run: |
         poetry run pytest tests
-
   int:
     name: Integration Tests
     runs-on: ubuntu-20.04
